@@ -1,3 +1,15 @@
-%{"benchee": {:hex, :benchee, "0.6.0", "c2565506c621ee010e71d05f555e39a1b937e00810e284bc85463a4d4efc4b00", [:mix], [{:deep_merge, "~> 0.1", [hex: :deep_merge, optional: false]}]},
+%{"basex": {:hex, :basex, "0.2.4", "10c0fec39eebd27ff79471c718012dc26bfe57bb147f4d5dadc4903b3b281933", [:mix], []},
+  "benchee": {:hex, :benchee, "0.6.0", "c2565506c621ee010e71d05f555e39a1b937e00810e284bc85463a4d4efc4b00", [:mix], [{:deep_merge, "~> 0.1", [hex: :deep_merge, optional: false]}]},
+  "chacha20": {:hex, :chacha20, "0.3.5", "4b9df4547b6fe38f401262b63bf874bd8d0f7472d0e041706f799e5b99a4d8f1", [:mix], []},
+  "curve25519": {:hex, :curve25519, "0.1.3", "d554df0e9526a2003f6e0cb4daf09b93a3ccc1a29ff48e538491fdfd26b2bbde", [:mix], []},
   "deep_merge": {:hex, :deep_merge, "0.1.1", "c27866a7524a337b6a039eeb8dd4f17d458fd40fbbcb8c54661b71a22fffe846", [:mix], []},
-  "graphvix": {:hex, :graphvix, "0.5.0", "ee4125d1f85d7121ac19b4029bafe9a36dc63186efea2aa279b3343ebfbd3211", [:mix], []}}
+  "ed25519": {:hex, :ed25519, "0.2.4", "f1e035888d3431742098d3990a0acde110d76e34342ce95062d9d45d3b01c436", [:mix], []},
+  "equivalex": {:hex, :equivalex, "0.1.3", "7acc63bd7bdb37d1012f2ec2335b00b77417a285dc6bef43ec0f1c3ab08b665b", [:mix], []},
+  "graphvix": {:hex, :graphvix, "0.5.0", "ee4125d1f85d7121ac19b4029bafe9a36dc63186efea2aa279b3343ebfbd3211", [:mix], []},
+  "kcl": {:hex, :kcl, "0.6.5", "8cd9ff89488eb978fd28beb93285f317ccc2ba32e402ea2f7c83c4f58c603a7c", [:mix], [{:curve25519, "~> 0.1", [hex: :curve25519, optional: false]}, {:ed25519, "~> 0.2", [hex: :ed25519, optional: false]}, {:poly1305, "~> 0.4", [hex: :poly1305, optional: false]}, {:salsa20, "~> 0.3", [hex: :salsa20, optional: false]}]},
+  "libsodium": {:hex, :libsodium, "0.0.10", "24584e6f5a60aed53542054c15fb31719bbf2d811d9a84f626734faf64d41304", [:rebar3], []},
+  "msgpax": {:hex, :msgpax, "1.0.0", "8135ba90c5560de753b63f7af1cf019a695d3e959ea564ea733634c95eaa037a", [:mix], [{:plug, "~> 1.0", [hex: :plug, optional: true]}]},
+  "poison": {:hex, :poison, "3.0.0", "625ebd64d33ae2e65201c2c14d6c85c27cc8b68f2d0dd37828fde9c6920dd131", [:mix], []},
+  "poly1305": {:hex, :poly1305, "0.4.4", "dcf9921c12601c24365a048c10bfbe15f7cac74051e980b8467317a8dc034e6e", [:mix], [{:chacha20, "~> 0.3", [hex: :chacha20, optional: false]}, {:equivalex, "~> 0.1", [hex: :equivalex, optional: false]}]},
+  "salsa20": {:hex, :salsa20, "0.3.3", "0f7bbe68579e50fd58426c6adb7ad662c280775f24487360ac6e22d9f668ef88", [:mix], []},
+  "saltpack": {:hex, :saltpack, "1.0.4", "be5a82ca5729531fa5338fcf0a2ef7a5c63e1ec0ee755d01f332dac39e1f3526", [:mix], [{:basex, "~> 0.2", [hex: :basex, optional: false]}, {:equivalex, "~> 0.1", [hex: :equivalex, optional: false]}, {:kcl, "~> 0.6", [hex: :kcl, optional: false]}, {:msgpax, "~> 1.0", [hex: :msgpax, optional: false]}]}}

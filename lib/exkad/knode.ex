@@ -5,6 +5,7 @@ defmodule Exkad.Knode do
 
   @k 16
   @replication 1
+  @layers 5
 
   defmodule State do
     defstruct [:bitlist,
@@ -15,28 +16,35 @@ defmodule Exkad.Knode do
   end
 
   defmodule Peer do
-    defstruct [:location, :id, :name, :k]
+    defstruct [:location, :id, :name, :k, :keypair]
   end
 
-  def start_link(pk, k \\ @k) do
-    GenServer.start_link(__MODULE__, [pk, k], [])
+  def start_link(keypair, k) do
+    GenServer.start_link(__MODULE__, [keypair, k], [])
   end
 
-  def init([pk, k]) do
-    me = my_identity(pk, k)
+
+  def new(keypair, k \\ @k) do
+    {:ok, pid} = start_link(keypair, k)
+
+    {_, pub_key} = keypair
+    %Peer{location: pid, id: hash(pub_key), name: pub_key, k: k, keypair: keypair}
+  end
+
+  def init([{_, pub_key} = keypair, k]) do
+    id = hash(pub_key)
     state = %State{
-      me: me,
-      buckets: Enum.map(0..bit_size(me.id), fn _ -> [] end)
+      me: %Peer{
+        location: self,
+        id: id,
+        name: pub_key,
+        k: k,
+        keypair: keypair
+      },
+      buckets: Enum.map(0..bit_size(id), fn _ -> [] end)
     }
     {:ok, state}
   end
-
-  # Protocol?
-  defp identity(location, pk, k) do
-    %Peer{location: location, id: hash(pk), name: pk, k: k}
-  end
-  defp my_identity(pk, k), do: identity(self, pk, k)
-
 
   defp prefix_length(<<same::size(1), a_rest::bitstring>>, <<same::size(1), b_rest::bitstring>>) do
     1 + prefix_length(a_rest, b_rest)
@@ -193,8 +201,60 @@ defmodule Exkad.Knode do
     {:reply, closest, state}
   end
 
+  def handle_call({:sample, quantity}, _, %State{buckets: b} = state) do
+    sample = List.flatten(b)
+    |> Enum.shuffle
+    |> Enum.take(quantity)
+
+    reply = if length(sample) < quantity do
+      {:error, :insufficient_peers}
+    else
+      {:ok, sample}
+    end
+    {:reply, reply, state}
+  end
+
   def handle_call(:dump, _, state) do
     {:reply, state, state}
+  end
+
+  def handle_cast({:store, key, value, replication}, state) do
+    refs = [make_ref]
+    log_refs(:store, refs, state.me)
+
+    IO.inspect {:store, key, value}
+
+    get_k_closest(key, state)
+    |> get_closer(key, state.me, refs)
+    |> Enum.take(replication)
+    |> Enum.map(fn peer ->
+        put(peer, key, value, refs)
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast({:forward, message, peer_bin}, state) do
+    res = with {:ok, %Peer{} = peer} <- decode_peer(peer_bin) do
+      boxed_request(peer, message)
+    end
+
+    {:noreply, state}
+  end
+
+  def handle_cast({:boxed_request, cyphertext}, state) do
+    spawn_link(fn ->
+      open_and_dispatch(cyphertext, state.me)
+    end)
+    {:noreply, state}
+  end
+
+  def boxed_request(%Peer{} = peer, cyphertext) do
+    GenServer.cast(peer.location, {:boxed_request, cyphertext})
+  end
+
+  def sample(%Peer{} = peer, quantity) do
+    GenServer.call(peer.location, {:sample, quantity})
   end
 
   def ping(%Peer{} = peer, %Peer{} = from) do
@@ -248,9 +308,35 @@ defmodule Exkad.Knode do
     end
   end
 
-  def store(%Peer{} = me, key, value, replication \\ @replication) do
+  def store(%Peer{} = me, key, value, replication \\ @replication, layers \\ 5) do
+    result = with {:ok, sample} <- sample(me, layers) do
+      result = store_request(key, value, replication)
+      |> make_onion(me, sample)
+      |> do_dispatch(me)
+    end
+  end
+
+  def add(%Peer{} = me, %Peer{} = peer) do
+    GenServer.call(me.location, {:add, peer})
+  end
+
+  defp open_and_dispatch(cyphertext, me) do
+    {priv, pub} = me.keypair
+    with {:ok, msg} <- Poison.decode(Saltpack.open_message(cyphertext, priv)) do
+      do_dispatch(msg, me)
+    end
+  end
+
+  defp do_dispatch(%{"func" => "forward", "params" => [forwardee_message, forwardee]}, to) do
+    IO.inspect {:dispatching, forwardee}
+    GenServer.cast(to.location, {:forward, forwardee_message, forwardee})
+  end
+
+  defp do_dispatch(%{"func" => "store", "params" => [key, value, replication]}, me) do
     refs = [make_ref]
     log_refs(:store, refs, me)
+
+    IO.inspect {:storing, key, value}
 
     k_closest(me, key, refs)
     |> get_closer(key, me, refs)
@@ -259,9 +345,53 @@ defmodule Exkad.Knode do
         put(peer, key, value, refs)
     end)
   end
+  # Onioning
+  #
+  #
+  defp forward_request(message, %Peer{} = p) do
+    %{
+      "func" => "forward",
+      "params" => [message, encode_peer!(p)]
+    }
+  end
 
-  def add(%Peer{} = me, %Peer{} = peer) do
-    GenServer.call(me.location, {:add, peer})
+  defp store_request(key, value, replication) do
+    %{
+      "func" => "store",
+      "params" => [key, value, replication]
+    }
+  end
+
+  def encode_peer!(%Peer{} = p) do
+    Base.encode64(:erlang.term_to_binary(p))
+  end
+
+  def decode_peer(b64)do
+    with {:ok, bin} <- Base.decode64(b64) do
+      {:ok, :erlang.binary_to_term(bin)}
+    end
+  end
+
+  def encrypt_message(message, %Peer{keypair: {priv, pub}} = _from, %Peer{name: to_pk} = to) do
+    message
+    |> Poison.encode!
+    |> Saltpack.encrypt_message([to_pk], priv, pub)
+  end
+
+  def make_onion(request, %Peer{} = me, peers) do
+    [terminal | rest] = Enum.reverse(peers)
+
+    term_request = encrypt_message(request, me, terminal)
+    {onion, first_peer} = Enum.reduce(rest, {term_request, terminal}, fn prev_peer, {text, %Peer{} = to} ->
+
+      inner_text = text
+      |> forward_request(to)
+      |> encrypt_message(me, prev_peer)
+
+      {inner_text, prev_peer}
+    end)
+
+    forward_request(onion, first_peer)
   end
 
   # Not used?
