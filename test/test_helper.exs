@@ -1,6 +1,5 @@
 defmodule TestHelper do
   alias Exkad.Knode
-  alias Exkad.Knode
 
   def peers_of(p) do
     Knode.dump(p).buckets
@@ -9,7 +8,7 @@ defmodule TestHelper do
     |> Enum.sort
   end
 
-  def make(pub), do: Knode.new({nil, pub})
+  def make(pub), do: Knode.new({nil, pub}, [])
 end
 
 ExUnit.start()

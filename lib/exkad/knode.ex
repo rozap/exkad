@@ -2,6 +2,7 @@ defmodule Exkad.Knode do
   use GenServer
   import Exkad.Hash
   require Logger
+  alias Exkad.Connection
 
   @k 16
   @replication 1
@@ -19,7 +20,11 @@ defmodule Exkad.Knode do
     defstruct [:location, :id, :name, :k]
   end
 
-  def new({_priv, pub} = keypair) do
+  defmodule TCPPeer do
+    defstruct [:location, :id, :name, :k]
+  end
+
+  def new({_priv, pub} = keypair, opts) do
     {:ok, pid} = start_link(keypair)
     %Peer{location: pid, id: hash(pub), name: pub, k: @k}
   end
@@ -52,7 +57,7 @@ defmodule Exkad.Knode do
 
   defp add_peer(:nobody, state), do: state
   defp add_peer(%Peer{} = me, %State{me: me} = state), do: state
-  defp add_peer(%Peer{} = peer, state) do
+  defp add_peer(peer, state) do
     position = prefix_length(state.me.id, peer.id)
 
     # IO.inspect {:position, position}
@@ -92,7 +97,7 @@ defmodule Exkad.Knode do
 
     log_refs("k_closest_of_#{length(peers)}", refs, me)
     peers_k_closest = Enum.flat_map(peers, fn
-      p -> k_closest(p, key, refs, me)
+      p -> Connection.k_closest(p, key, refs, me)
     end)
     log_refs("k_closest_of_#{length(peers)}_done", refs, me)
 
@@ -100,9 +105,7 @@ defmodule Exkad.Knode do
     |> Enum.sort_by(fn peer -> distance(peer.id, h) end)
     |> Enum.take(me.k)
 
-    Enum.each(peers_k_closest, fn peer ->
-      add(me, peer)
-    end)
+    Enum.each(peers_k_closest, fn peer -> add(me, peer) end)
 
     best = Enum.min_by(peers, fn p -> distance(p.id, h) end)
     best_dist = distance(best.id, h)
@@ -149,18 +152,18 @@ defmodule Exkad.Knode do
     Logger.debug("#{label} :: #{s} :: #{inspect me.name} #{inspect me.location}")
   end
 
-  def handle_call({:ping, %Peer{} = from_peer}, _, state) do
+  def handle_call({:ping, from_peer}, _, state) do
     state = add_peer(from_peer, state)
     {:reply, :ok, state}
   end
 
-  def handle_call({:add, %Peer{} = peer}, _, state) do
+  def handle_call({:add, peer}, _, state) do
     state = add_peer(peer, state)
     {:reply, :ok, state}
   end
 
 
-  def handle_call({:connect, %Peer{} = peer} , _, state) do
+  def handle_call({:connect, peer} , _, state) do
     refs = [make_ref]
     log_refs(:connect, refs, state.me)
     state = add_peer(peer, state)
@@ -169,7 +172,7 @@ defmodule Exkad.Knode do
     Task.async(fn ->
       {:error, {:not_found, _}} = lookup(me, me.id)
 
-      case ping(peer, me) do
+      case Connection.ping(peer, me) do
         :ok ->
           log_refs(:connect_done, refs, me)
         reason ->
@@ -204,30 +207,11 @@ defmodule Exkad.Knode do
     {:reply, state, state}
   end
 
-  def ping(%Peer{} = peer, %Peer{} = from) do
-    GenServer.call(peer.location, {:ping, from})
-  end
-
-  def put(%Peer{} = me, key, value, refs \\ []) do
-    refs = [make_ref | refs]
-    GenServer.call(me.location, {:put, key, value, refs})
-  end
-
-  def get(%Peer{} = peer, key, refs \\ []) do
-    refs = [make_ref | refs]
-    GenServer.call(peer.location, {:get, key, refs})
-  end
-
-  def k_closest(%Peer{} = me, key, refs \\ [], from \\ :nobody) do
-    refs = [make_ref | refs]
-    GenServer.call(me.location, {:k_closest, key, from, refs}, 1000)
-  end
-
   def lookup_node(%Peer{} = me, pk) do
     refs = [make_ref]
     log_refs(:lookup_node, refs, me)
 
-    k_closest(me, pk, refs)
+    Connection.k_closest(me, pk, refs, :nobody)
     |> get_closer(pk, me, refs)
   end
 
@@ -235,10 +219,10 @@ defmodule Exkad.Knode do
     refs = [make_ref]
     log_refs(:lookup, refs, me)
 
-    {oks, errors} = k_closest(me, key, refs)
+    {oks, errors} = Connection.k_closest(me, key, refs, :nobody)
     |> get_closer(key, me, refs)
     |> Enum.map(fn
-      p -> {p, get(p, key)}
+      p -> {p, Connection.get(p, key)}
     end)
     |> Enum.partition(fn
       {_peer, {:ok, _}} -> true
@@ -259,15 +243,16 @@ defmodule Exkad.Knode do
     refs = [make_ref]
     log_refs(:store, refs, me)
 
-    k_closest(me, key, refs)
+    Connection.k_closest(me, key, refs, :nobody)
     |> get_closer(key, me, refs)
     |> Enum.take(replication)
     |> Enum.map(fn peer ->
-        put(peer, key, value, refs)
+        Connection.put(peer, key, value, refs)
     end)
   end
 
-  def add(%Peer{} = me, %Peer{} = peer) do
+
+  def add(%Peer{} = me, peer) do
     GenServer.call(me.location, {:add, peer})
   end
 
@@ -276,12 +261,11 @@ defmodule Exkad.Knode do
   def connect(%Peer{location: me} = me, %Peer{location: me}) do
     raise RuntimeError, message: "Peers do not match but locations match?"
   end
-  def connect(%Peer{} = me, %Peer{} = p) do
+  def connect(%Peer{} = me, p) do
     GenServer.call(me.location, {:connect, p})
   end
 
   def dump(%Peer{} = me) do
     GenServer.call(me.location, :dump)
   end
-
 end

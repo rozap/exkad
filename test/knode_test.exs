@@ -1,6 +1,6 @@
 defmodule KnodeTest do
   use ExUnit.Case
-  alias Exkad.{Knode, Hash}
+  alias Exkad.{Knode, Hash, Connection}
   import TestHelper
 
   @count 8
@@ -35,7 +35,7 @@ defmodule KnodeTest do
 
   test "can store" do
     a = make("a")
-    assert :ok == Knode.put(a, "foo", "bar")
+    assert :ok == Connection.put(a, "foo", "bar")
     assert Knode.dump(a).data == %{"foo" => "bar"}
   end
 
@@ -52,7 +52,7 @@ defmodule KnodeTest do
     c = make("c")
 
     Knode.store(c, "a", "an a")
-    assert {:ok, "an a"} == Knode.get(c, "a")
+    assert {:ok, "an a"} == Connection.get(c, "a")
 
     a = make("a")
     b = make("b")
@@ -62,7 +62,7 @@ defmodule KnodeTest do
     Knode.connect(b, c)
     :timer.sleep(50)
     Knode.store(c, "a", "an a")
-    assert {:error, :not_found} == Knode.get(c, "a")
+    assert {:error, :not_found} == Connection.get(c, "a")
     assert {:ok, ["an a"]} == Knode.lookup(c, "a")
 
     assert peers_of(a) == ["b", "c"]
