@@ -9,13 +9,6 @@ defmodule Exkad.Hash do
     :crypto.hash(:md5, bin)
   end
 
-  defp to_num(id) do
-    :erlang.bitstring_to_list(id)
-    |> Enum.reduce(0, fn byte, n ->
-      (n <<< 8) + byte
-    end)
-  end
-
   def max_id, do: @max_id
   def min_id, do: @min_id
 

@@ -9,6 +9,7 @@ defmodule Exkad.Knode do
   defmodule State do
     defstruct [:bitlist,
       :me,
+      :keypair,
       buckets: [],
       data: %{}
     ]
@@ -18,14 +19,20 @@ defmodule Exkad.Knode do
     defstruct [:location, :id, :name, :k]
   end
 
-  def start_link(pk, k \\ @k) do
-    GenServer.start_link(__MODULE__, [pk, k], [])
+  def new({_priv, pub} = keypair) do
+    {:ok, pid} = start_link(keypair)
+    %Peer{location: pid, id: hash(pub), name: pub, k: @k}
   end
 
-  def init([pk, k]) do
-    me = my_identity(pk, k)
+  def start_link(keypair, k \\ @k) do
+    GenServer.start_link(__MODULE__, [keypair, k], [])
+  end
+
+  def init([{_priv, pub} = keypair, k]) do
+    me = my_identity(pub, k)
     state = %State{
       me: me,
+      keypair: keypair,
       buckets: Enum.map(0..bit_size(me.id), fn _ -> [] end)
     }
     {:ok, state}
@@ -153,7 +160,7 @@ defmodule Exkad.Knode do
   end
 
 
-  def handle_call({:connect, %Peer{} = peer, k} , _, state) do
+  def handle_call({:connect, %Peer{} = peer} , _, state) do
     refs = [make_ref]
     log_refs(:connect, refs, state.me)
     state = add_peer(peer, state)
@@ -269,8 +276,8 @@ defmodule Exkad.Knode do
   def connect(%Peer{location: me} = me, %Peer{location: me}) do
     raise RuntimeError, message: "Peers do not match but locations match?"
   end
-  def connect(%Peer{} = me, %Peer{} = p, k \\ @k) do
-    GenServer.call(me.location, {:connect, p, k})
+  def connect(%Peer{} = me, %Peer{} = p) do
+    GenServer.call(me.location, {:connect, p})
   end
 
   def dump(%Peer{} = me) do

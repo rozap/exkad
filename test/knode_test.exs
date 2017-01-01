@@ -6,21 +6,13 @@ defmodule KnodeTest do
   @count 8
   @k 16
 
-  defp make(pk) do
-    {:ok, pid} = Knode.start_link(pk)
-    %Knode.Peer{location: pid, id: Hash.hash(pk), name: pk, k: @k}
-  end
-
   defp make_pool  do
-    {:ok, sid} = Knode.start_link("seed")
-    seed = %Knode.Peer{location: sid, id: Hash.hash("seed"), name: "seed"}
+    seed = make("seed")
 
     peers = "abcdefghijklmnopqrstuvwxyz"
     |> String.split("", trim: true)
-    |> Enum.map(fn pk ->
-      {:ok, pid} = Knode.start_link(pk)
-      %Knode.Peer{location: pid, id: Hash.hash(pk), name: pk, k: @k}
-    end)
+    |> Enum.map(&make/1)
+
     Enum.each(peers, fn a ->
       Knode.connect(a, seed)
     end)

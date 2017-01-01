@@ -6,11 +6,6 @@ defmodule IntegrationTest do
   @count 32
   @k 16
 
-  defp make(pk) do
-    {:ok, pid} = Knode.start_link(pk)
-    %Knode.Peer{location: pid, id: Hash.hash(pk), name: pk, k: @k}
-  end
-
   defp make_pool  do
     seed = make("seed")
 
@@ -26,7 +21,7 @@ defmodule IntegrationTest do
   test "can put and get stuff from the network" do
     peers = make_pool
 
-    {o, e} = Enum.map(0..100, fn i ->
+    {_, e} = Enum.map(0..100, fn i ->
       peer = Enum.random(peers)
       Knode.store(peer, "#{i}", "value_#{i}")
 
@@ -35,7 +30,7 @@ defmodule IntegrationTest do
     end)
     |> Enum.partition(fn {:ok, _} -> true; {:error, _} -> false end)
 
-    IO.puts "Ratio is #{length(o)} #{length(e)}"
+    assert length(e) == 0
   end
 
 
