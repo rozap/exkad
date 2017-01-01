@@ -30,7 +30,8 @@ defmodule Exkad.Mixfile do
   defp deps do
     [
       {:saltpack, "~> 1.0.4"},
-      {:poison, "~> 3.0"}
+      {:poison, "~> 3.0"},
+      {:uuid, "~> 1.0"}
     ]
   end
 end
