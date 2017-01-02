@@ -39,11 +39,14 @@ defmodule Exkad.Knode do
     id = hash(pub)
     name = pub
     k = Keyword.get(opts, :k, @k)
-    with {:ok, me} <- my_identity(id, name, k, Enum.into(opts, %{})) do
+
+    with {:ok, external_me, internal_me} <- my_identity(id, name, k, Enum.into(opts, %{})),
+      :ok = Connection.start_link(external_me, internal_me) do
+
       state = %State{
-        me: me,
+        me: external_me,
         keypair: keypair,
-        buckets: Enum.map(0..bit_size(me.id), fn _ -> [] end)
+        buckets: Enum.map(0..bit_size(external_me.id), fn _ -> [] end)
       }
       {:ok, state}      
     end
@@ -52,18 +55,21 @@ defmodule Exkad.Knode do
   defp my_identity(id, name, k, %{tcp: tcp_opts}) do
     case Enum.into(tcp_opts, %{}) do
       %{port: port, ip: ip} -> 
-        {:ok, %TCPPeer{
+        external_me = %TCPPeer{
           ip: ip, 
           port: port,
           name: name, 
           id: id,
           k: k
-        }}
+        }
+        {:ok, internal_me, _} = my_identity(id, name, k, nil)
+        {:ok, external_me, internal_me}
       invalid -> {:error, {"Invalid TCP opts", invalid}}
     end
   end
-  defp identity(id, name, k, _) do
-    {:ok, %Peer{location: self, id: id, name: name, k: k}}
+  defp my_identity(id, name, k, _) do
+    me = %Peer{location: self, id: id, name: name, k: k}
+    {:ok, me, me}
   end
 
 

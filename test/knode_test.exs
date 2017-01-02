@@ -25,6 +25,7 @@ defmodule KnodeTest do
     b = make("b")
 
     assert :ok == Knode.connect(a, b)
+    :timer.sleep(10)
 
     [b_peer] = List.flatten((Knode.dump(a)).buckets)
     [a_peer] = List.flatten((Knode.dump(b)).buckets)

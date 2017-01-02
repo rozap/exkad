@@ -3,7 +3,7 @@ defmodule IntegrationTest do
   alias Exkad.{Knode, Hash}
   import TestHelper
 
-  @count 32
+  @count 64
   @k 16
 
   defp make_pool  do
@@ -21,16 +21,21 @@ defmodule IntegrationTest do
   test "can put and get stuff from the network" do
     peers = make_pool
 
-    {_, e} = Enum.map(0..100, fn i ->
-      peer = Enum.random(peers)
-      Knode.store(peer, "#{i}", "value_#{i}")
+    Enum.map(0..8, fn _ ->
+      Task.async(fn ->
+        {_, e} = Enum.map(0..64, fn i ->
+          peer = Enum.random(peers)
+          Knode.store(peer, "#{i}", "value_#{i}")
 
-      someone = Enum.random(peers)
-      Knode.lookup(someone, "#{i}")
+          someone = Enum.random(peers)
+          Knode.lookup(someone, "#{i}")
+        end)
+        |> Enum.partition(fn {:ok, _} -> true; {:error, _} -> false end)
+
+        assert length(e) == 0
+      end)
     end)
-    |> Enum.partition(fn {:ok, _} -> true; {:error, _} -> false end)
-
-    assert length(e) == 0
+    |> Enum.map(fn t -> Task.await(t, 60_000) end)
   end
 
 

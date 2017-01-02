@@ -1,6 +1,10 @@
 defimpl Exkad.Connection, for: Exkad.Knode.Peer do
   alias Exkad.Knode.Peer
 
+  def start_link(peer, peer) do
+    :ok
+  end
+
   def ping(%Peer{} = peer, from) do
     GenServer.call(peer.location, {:ping, from})
   end

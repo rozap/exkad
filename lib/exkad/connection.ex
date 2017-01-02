@@ -1,4 +1,6 @@
 defprotocol Exkad.Connection do
+  def start_link(peer, local)
+
   def ping(peer, from)
 
   def put(peer, key, value, refs \\ [])
