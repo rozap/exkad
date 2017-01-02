@@ -1,18 +1,24 @@
 defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
-  alias Exkad.Knode.Peer
+  import Exkad.Tcp.Wire
 
-  def ping(peer, from) do
+  defp request(peer, body) do
+    ip = String.to_charlist(peer.ip)
+    with {:ok, sock} <- :gen_tcp.connect(ip, peer.port, [:binary, {:packet, 0}, {:active, false}]) do
+      :ok = :gen_tcp.send(sock, serialize!(body))
+      with {:ok, response} <- do_receive(sock) do
+        :gen_tcp.close(sock)
+        response
+      end
+    end    
   end
 
-  def put(peer, key, value, refs \\ []) do
+  def ping(peer, from), do: request(peer, {:ping, from})
 
-  end
+  def put(peer, key, value, _ \\ []), do: request(peer, {:put, key, value})
 
-  def get(peer, key, refs \\ []) do
-    {:error, :not_found}
-  end
+  def get(peer, key, _ \\ []), do: request(peer, {:get, key})
 
   def k_closest(peer, key, refs \\ [], from \\ :nobody) do
-    []
+    request(peer, {:k_closest, key, from}) 
   end
 end

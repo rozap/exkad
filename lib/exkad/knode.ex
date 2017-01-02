@@ -21,7 +21,7 @@ defmodule Exkad.Knode do
   end
 
   defmodule TCPPeer do
-    defstruct [:location, :id, :name, :k]
+    defstruct [:ip, :port, :id, :name, :k]
   end
 
   def new({_priv, pub} = keypair, opts) do
