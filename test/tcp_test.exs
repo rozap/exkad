@@ -11,7 +11,7 @@ defmodule TcpTest do
     Agent.update(agent, fn _ -> bin end)
 
     response = serialize!(:mock_response)
-    
+
     :ok = :gen_tcp.send(sock, response)
     :ok = :gen_tcp.shutdown(sock, :read_write)
     :ok = :gen_tcp.close(sock)
@@ -23,10 +23,14 @@ defmodule TcpTest do
     accept_connections(listener, agent)
   end
 
+  defp random_port() do
+    Enum.random(2000..4000)
+  end
+
   test "can make requests" do
     peer = %Knode.TCPPeer{
       ip: "localhost",
-      port: Enum.random(2000..4000)
+      port: random_port()
     }
 
     {:ok, agent} = Agent.start_link(fn -> nil end)
@@ -63,6 +67,25 @@ defmodule TcpTest do
       name: "a",
       k: 16
     }
+  end
+
+  test "can start two tcp knodes and put/get" do
+    a_port = random_port()
+    b_port = random_port()
+    a = Knode.new({nil, "a"}, [tcp: [port: a_port, ip: "localhost"]])
+    b = Knode.new({nil, "b"}, [tcp: [port: b_port, ip: "localhost"]])
+
+    Knode.connect(a, %Knode.TCPPeer{
+      port: b_port,
+      ip: "localhost",
+      id: Hash.hash("b"),
+      name: "b",
+      k: 16
+    })
+
+    assert [:ok] == Knode.store(a, "b", "b value")
+    assert {:ok, ["b value"]} = Knode.lookup(b, "b")
+    assert {:ok, ["b value"]} = Knode.lookup(a, "b")
   end
 
 end

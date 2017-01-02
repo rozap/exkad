@@ -48,17 +48,17 @@ defmodule Exkad.Knode do
         keypair: keypair,
         buckets: Enum.map(0..bit_size(external_me.id), fn _ -> [] end)
       }
-      {:ok, state}      
+      {:ok, state}
     end
   end
 
   defp my_identity(id, name, k, %{tcp: tcp_opts}) do
     case Enum.into(tcp_opts, %{}) do
-      %{port: port, ip: ip} -> 
+      %{port: port, ip: ip} ->
         external_me = %TCPPeer{
-          ip: ip, 
+          ip: ip,
           port: port,
-          name: name, 
+          name: name,
           id: id,
           k: k
         }
@@ -83,7 +83,6 @@ defmodule Exkad.Knode do
   defp add_peer(peer, state) do
     position = prefix_length(state.me.id, peer.id)
 
-    # IO.inspect {:position, position}
     buckets = Enum.with_index(state.buckets)
     |> Enum.map(fn
       {b, ^position} -> Enum.take(Enum.uniq([peer | b]), state.me.k)
@@ -162,17 +161,17 @@ defmodule Exkad.Knode do
   end
 
   defp log_refs(label, refs, me) do
-    s = refs
-    |> Enum.map(fn r ->
-      hash(r)
-      |> :erlang.bitstring_to_list
-      |> Enum.map(&(:io_lib.format("~2.16.0b", [&1])))
-      |> List.flatten
-      |> to_string
-      |> String.slice(0..8)
-    end)
-    |> Enum.join("|")
-    Logger.debug("#{label} :: #{s} :: #{inspect me.name} #{inspect me.location}")
+    # s = refs
+    # |> Enum.map(fn r ->
+    #   hash(r)
+    #   |> :erlang.bitstring_to_list
+    #   |> Enum.map(&(:io_lib.format("~2.16.0b", [&1])))
+    #   |> List.flatten
+    #   |> to_string
+    #   |> String.slice(0..8)
+    # end)
+    # |> Enum.join("|")
+    # Logger.debug("#{label} :: #{s} :: #{inspect me.name} #{inspect me.location}")
   end
 
   def handle_call({:ping, from_peer}, _, state) do
@@ -190,18 +189,6 @@ defmodule Exkad.Knode do
     refs = [make_ref]
     log_refs(:connect, refs, state.me)
     state = add_peer(peer, state)
-
-    me = state.me
-    Task.async(fn ->
-      {:error, {:not_found, _}} = lookup(me, me.id)
-
-      case Connection.ping(peer, me) do
-        :ok ->
-          log_refs(:connect_done, refs, me)
-        reason ->
-          Logger.error("Bootstrap ping failed: #{reason}")
-      end
-    end)
 
     {:reply, :ok, state}
   end
@@ -230,7 +217,7 @@ defmodule Exkad.Knode do
     {:reply, state, state}
   end
 
-  def lookup_node(%Peer{} = me, pk) do
+  def lookup_node(me, pk) do
     refs = [make_ref]
     log_refs(:lookup_node, refs, me)
 
@@ -238,7 +225,7 @@ defmodule Exkad.Knode do
     |> get_closer(pk, me, refs)
   end
 
-  def lookup(%Peer{} = me, key) do
+  def lookup(me, key) do
     refs = [make_ref]
     log_refs(:lookup, refs, me)
 
@@ -284,8 +271,18 @@ defmodule Exkad.Knode do
   def connect(%Peer{location: me} = me, %Peer{location: me}) do
     raise RuntimeError, message: "Peers do not match but locations match?"
   end
-  def connect(%Peer{} = me, p) do
-    GenServer.call(me.location, {:connect, p})
+  def connect(%Peer{} = me, peer) do
+    :ok = GenServer.call(me.location, {:connect, peer})
+
+    {:error, {:not_found, _}} = lookup(me, me.id)
+
+    case Connection.ping(peer, me) do
+      :ok ->
+        :ok
+      reason ->
+        Logger.error("Bootstrap ping failed: #{reason}")
+        :error
+    end
   end
 
   def dump(%Peer{} = me) do

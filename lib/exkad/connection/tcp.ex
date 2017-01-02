@@ -1,6 +1,7 @@
 defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
   import Exkad.Tcp.Wire
   alias Exkad.Knode.Peer
+  alias Exkad.Connection, as: C
 
   defp request(peer, body) do
     ip = String.to_charlist(peer.ip)
@@ -10,7 +11,7 @@ defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
         :gen_tcp.close(sock)
         response
       end
-    end    
+    end
   end
 
   defp serve(port, %Peer{} = peer) do
@@ -18,19 +19,23 @@ defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
     accept_connections(listener, peer)
   end
 
-  defp accept_connections(listener, agent) do
+  defp accept_connections(listener, %Peer{} = peer) do
     {:ok, sock} = :gen_tcp.accept(listener)
-    {:ok, term} = do_receive(sock)
 
-    # dispatch(term)
+    response = with {:ok, request} <- do_receive(sock) do
+      dispatch(request, peer)
+    end
 
-    response = serialize!(:mock_response)
-    
-    :ok = :gen_tcp.send(sock, response)
+    :ok = :gen_tcp.send(sock, serialize!(response))
     :ok = :gen_tcp.shutdown(sock, :read_write)
     :ok = :gen_tcp.close(sock)
-    accept_connections(listener, agent)
+    accept_connections(listener, peer)
   end
+
+  defp dispatch({:ping, from}, peer),           do: C.ping(peer, from)
+  defp dispatch({:put, key, value}, peer),      do: C.put(peer, key, value)
+  defp dispatch({:get, key}, peer),             do: C.get(peer, key)
+  defp dispatch({:k_closest, key, from}, peer), do: C.k_closest(peer, key, [], from)
 
   def start_link(external, internal) do
     _pid = spawn_link(fn ->
@@ -40,13 +45,8 @@ defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
     :ok
   end
 
-  def ping(peer, from), do: request(peer, {:ping, from})
-
+  def ping(peer, from),               do: request(peer, {:ping, from})
   def put(peer, key, value, _ \\ []), do: request(peer, {:put, key, value})
-
-  def get(peer, key, _ \\ []), do: request(peer, {:get, key})
-
-  def k_closest(peer, key, refs \\ [], from \\ :nobody) do
-    request(peer, {:k_closest, key, from}) 
-  end
+  def get(peer, key, _ \\ []),        do: request(peer, {:get, key})
+  def k_closest(peer, key, _ \\ [], from \\ :nobody), do: request(peer, {:k_closest, key, from})
 end
