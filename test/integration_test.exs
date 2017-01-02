@@ -1,6 +1,6 @@
 defmodule IntegrationTest do
   use ExUnit.Case
-  alias Exkad.{Knode, Hash}
+  alias Exkad.Knode
   import TestHelper
 
   @count 64

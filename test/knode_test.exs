@@ -1,6 +1,6 @@
 defmodule KnodeTest do
   use ExUnit.Case
-  alias Exkad.{Knode, Hash, Connection}
+  alias Exkad.{Knode, Connection}
   import TestHelper
 
   @count 8

@@ -58,7 +58,7 @@ defmodule TcpTest do
   end
 
   test "can start a node which will talk over tcp" do
-    peer = Knode.new({nil, "a"}, [tcp: [port: 5000, ip: "localhost"]])
+    peer = Knode.new({nil, "a"}, [tcp: [port: 5000, ip: "localhost" ]])
     assert %Knode.Peer{} = peer
     assert Knode.dump(peer).me == %Knode.TCPPeer{
       port: 5000,

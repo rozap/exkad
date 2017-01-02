@@ -3,15 +3,12 @@ defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
   alias Exkad.Knode.Peer
   alias Exkad.Connection, as: C
 
-  defp request(peer, body) do
-    ip = String.to_charlist(peer.ip)
-    with {:ok, sock} <- :gen_tcp.connect(ip, peer.port, [:binary, {:packet, 0}, {:active, false}]) do
-      :ok = :gen_tcp.send(sock, serialize!(body))
-      with {:ok, response} <- do_receive(sock) do
-        :gen_tcp.close(sock)
-        response
-      end
-    end
+  def start_link(external, internal) do
+    _pid = spawn_link(fn ->
+      serve(external.port, internal)
+    end)
+
+    :ok
   end
 
   defp serve(port, %Peer{} = peer) do
@@ -32,18 +29,21 @@ defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
     accept_connections(listener, peer)
   end
 
+  defp request(peer, body) do
+    ip = String.to_charlist(peer.ip)
+    with {:ok, sock} <- :gen_tcp.connect(ip, peer.port, [:binary, {:packet, 0}, {:active, false}]) do
+      :ok = :gen_tcp.send(sock, serialize!(body))
+      with {:ok, response} <- do_receive(sock) do
+        :gen_tcp.close(sock)
+        response
+      end
+    end
+  end
+
   defp dispatch({:ping, from}, peer),           do: C.ping(peer, from)
   defp dispatch({:put, key, value}, peer),      do: C.put(peer, key, value)
   defp dispatch({:get, key}, peer),             do: C.get(peer, key)
   defp dispatch({:k_closest, key, from}, peer), do: C.k_closest(peer, key, [], from)
-
-  def start_link(external, internal) do
-    _pid = spawn_link(fn ->
-      serve(external.port, internal)
-    end)
-
-    :ok
-  end
 
   def ping(peer, from),               do: request(peer, {:ping, from})
   def put(peer, key, value, _ \\ []), do: request(peer, {:put, key, value})
