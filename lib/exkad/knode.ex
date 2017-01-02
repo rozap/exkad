@@ -25,29 +25,46 @@ defmodule Exkad.Knode do
   end
 
   def new({_priv, pub} = keypair, opts) do
-    {:ok, pid} = start_link(keypair)
-    %Peer{location: pid, id: hash(pub), name: pub, k: @k}
+    {:ok, pid} = start_link(keypair, opts)
+
+    k = Keyword.get(opts, :k, @k)
+    %Peer{location: pid, id: hash(pub), name: pub, k: k}
   end
 
-  def start_link(keypair, k \\ @k) do
-    GenServer.start_link(__MODULE__, [keypair, k], [])
+  def start_link(keypair, opts) do
+    GenServer.start_link(__MODULE__, [keypair, opts], [])
   end
 
-  def init([{_priv, pub} = keypair, k]) do
-    me = my_identity(pub, k)
-    state = %State{
-      me: me,
-      keypair: keypair,
-      buckets: Enum.map(0..bit_size(me.id), fn _ -> [] end)
-    }
-    {:ok, state}
+  def init([{_priv, pub} = keypair, opts]) do
+    id = hash(pub)
+    name = pub
+    k = Keyword.get(opts, :k, @k)
+    with {:ok, me} <- my_identity(id, name, k, Enum.into(opts, %{})) do
+      state = %State{
+        me: me,
+        keypair: keypair,
+        buckets: Enum.map(0..bit_size(me.id), fn _ -> [] end)
+      }
+      {:ok, state}      
+    end
   end
 
-  # Protocol?
-  defp identity(location, pk, k) do
-    %Peer{location: location, id: hash(pk), name: pk, k: k}
+  defp my_identity(id, name, k, %{tcp: tcp_opts}) do
+    case Enum.into(tcp_opts, %{}) do
+      %{port: port, ip: ip} -> 
+        {:ok, %TCPPeer{
+          ip: ip, 
+          port: port,
+          name: name, 
+          id: id,
+          k: k
+        }}
+      invalid -> {:error, {"Invalid TCP opts", invalid}}
+    end
   end
-  defp my_identity(pk, k), do: identity(self, pk, k)
+  defp identity(id, name, k, _) do
+    {:ok, %Peer{location: self, id: id, name: name, k: k}}
+  end
 
 
   defp prefix_length(<<same::size(1), a_rest::bitstring>>, <<same::size(1), b_rest::bitstring>>) do

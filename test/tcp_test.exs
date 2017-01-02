@@ -14,14 +14,13 @@ defmodule TcpTest do
     
     :ok = :gen_tcp.send(sock, response)
     :ok = :gen_tcp.shutdown(sock, :read_write)
-    # :ok = :gen_tcp.close(sock)
+    :ok = :gen_tcp.close(sock)
     accept_connections(listener, agent)
   end
 
   defp serve(port, agent) do
     {:ok, listener} = :gen_tcp.listen(port, [:binary, {:packet, 0}, {:active, false}])
     accept_connections(listener, agent)
-    # :ok = :gen_tcp.close(listener)
   end
 
   test "can make requests" do
@@ -52,6 +51,18 @@ defmodule TcpTest do
     assert Connection.k_closest(peer, "boo", [], from) == :mock_response
     request = Agent.get(agent, fn s -> s end)
     assert request == {:k_closest, "boo", from}
+  end
+
+  test "can start a node which will talk over tcp" do
+    peer = Knode.new({nil, "a"}, [tcp: [port: 5000, ip: "localhost"]])
+    assert %Knode.Peer{} = peer
+    assert Knode.dump(peer).me == %Knode.TCPPeer{
+      port: 5000,
+      ip: "localhost",
+      id: Hash.hash("a"),
+      name: "a",
+      k: 16
+    }
   end
 
 end
