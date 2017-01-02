@@ -3,9 +3,9 @@ defprotocol Exkad.Connection do
 
   def ping(peer, from)
 
-  def put(peer, key, value, refs \\ [])
+  def put(peer, key, value)
 
-  def get(peer, key, refs \\ [])
+  def get(peer, key)
 
-  def k_closest(peer, key, refs \\ [], from \\ :nobody)
+  def k_closest(peer, key, from \\ :nobody)
 end

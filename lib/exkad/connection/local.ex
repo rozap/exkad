@@ -9,18 +9,15 @@ defimpl Exkad.Connection, for: Exkad.Knode.Peer do
     GenServer.call(peer.location, {:ping, from})
   end
 
-  def put(%Peer{} = peer, key, value, refs \\ []) do
-    refs = [make_ref | refs]
-    GenServer.call(peer.location, {:put, key, value, refs})
+  def put(%Peer{} = peer, key, value) do
+    GenServer.call(peer.location, {:put, key, value})
   end
 
-  def get(%Peer{} = peer, key, refs \\ []) do
-    refs = [make_ref | refs]
-    GenServer.call(peer.location, {:get, key, refs})
+  def get(%Peer{} = peer, key) do
+    GenServer.call(peer.location, {:get, key})
   end
 
-  def k_closest(%Peer{} = peer, key, refs \\ [], from \\ :nobody) do
-    refs = [make_ref | refs]
-    GenServer.call(peer.location, {:k_closest, key, from, refs}, 1000)
+  def k_closest(%Peer{} = peer, key, from \\ :nobody) do
+    GenServer.call(peer.location, {:k_closest, key, from}, 1000)
   end
 end

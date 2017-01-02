@@ -43,10 +43,10 @@ defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
   defp dispatch({:ping, from}, peer),           do: C.ping(peer, from)
   defp dispatch({:put, key, value}, peer),      do: C.put(peer, key, value)
   defp dispatch({:get, key}, peer),             do: C.get(peer, key)
-  defp dispatch({:k_closest, key, from}, peer), do: C.k_closest(peer, key, [], from)
+  defp dispatch({:k_closest, key, from}, peer), do: C.k_closest(peer, key, from)
 
   def ping(peer, from),               do: request(peer, {:ping, from})
-  def put(peer, key, value, _ \\ []), do: request(peer, {:put, key, value})
-  def get(peer, key, _ \\ []),        do: request(peer, {:get, key})
-  def k_closest(peer, key, _ \\ [], from \\ :nobody), do: request(peer, {:k_closest, key, from})
+  def put(peer, key, value),          do: request(peer, {:put, key, value})
+  def get(peer, key),                 do: request(peer, {:get, key})
+  def k_closest(peer, key, from \\ :nobody), do: request(peer, {:k_closest, key, from})
 end

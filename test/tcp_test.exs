@@ -52,7 +52,7 @@ defmodule TcpTest do
     request = Agent.get(agent, fn s -> s end)
     assert request == {:ping, from}
 
-    assert Connection.k_closest(peer, "boo", [], from) == :mock_response
+    assert Connection.k_closest(peer, "boo", from) == :mock_response
     request = Agent.get(agent, fn s -> s end)
     assert request == {:k_closest, "boo", from}
   end
