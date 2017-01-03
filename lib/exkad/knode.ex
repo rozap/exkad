@@ -49,6 +49,10 @@ defmodule Exkad.Knode do
         keypair: keypair,
         buckets: Enum.map(0..bit_size(external_me.id), fn _ -> [] end)
       }
+
+      :pg2.create(:exkad)
+      :pg2.join(:exkad, self)
+
       {:ok, state}
     end
   end
