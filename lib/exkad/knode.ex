@@ -110,21 +110,18 @@ defmodule Exkad.Knode do
     |> Enum.take(k)
   end
 
-  defp get_closer(_, _, me, refs, 5) do
-    log_refs(:max_iter, refs, me)
+  defp get_closer(_, _, me, 5) do
     raise RuntimeError, message: "Hit max iter"
   end
-  defp get_closer(_, _, %Peer{k: nil}, _, _) do
+  defp get_closer(_, _, %Peer{k: nil}, _) do
     raise RuntimeError, message: "nil k"
   end
-  defp get_closer(peers, key, me, refs, iter) do
+  defp get_closer(peers, key, me, iter) do
     h = hash(key)
 
-    log_refs("k_closest_of_#{length(peers)}", refs, me)
     peers_k_closest = Enum.flat_map(peers, fn
-      p -> Connection.k_closest(p, key, refs, me)
+      p -> Connection.k_closest(p, key, me)
     end)
-    log_refs("k_closest_of_#{length(peers)}_done", refs, me)
 
     next_gen = peers_k_closest
     |> Enum.sort_by(fn peer -> distance(peer.id, h) end)
@@ -143,13 +140,13 @@ defmodule Exkad.Knode do
       (peers ++ next_gen)
       |> Enum.uniq
       |> top_k_from(key, me.k)
-      |> get_closer(key, me, refs, iter + 1)
+      |> get_closer(key, me, iter + 1)
     else
       peers
     end
   end
-  defp get_closer(peers, key, me, refs) do
-    get_closer(peers, key, me, refs, 0)
+  defp get_closer(peers, key, me) do
+    get_closer(peers, key, me, 0)
   end
 
   defp put_in_state(key, value, state) do
@@ -161,20 +158,6 @@ defmodule Exkad.Knode do
       :not_found -> {:error, :not_found}
       value -> {:ok, value}
     end
-  end
-
-  defp log_refs(label, refs, me) do
-    # s = refs
-    # |> Enum.map(fn r ->
-    #   hash(r)
-    #   |> :erlang.bitstring_to_list
-    #   |> Enum.map(&(:io_lib.format("~2.16.0b", [&1])))
-    #   |> List.flatten
-    #   |> to_string
-    #   |> String.slice(0..8)
-    # end)
-    # |> Enum.join("|")
-    # Logger.debug("#{label} :: #{s} :: #{inspect me.name} #{inspect me.location}")
   end
 
   def handle_call({:ping, from_peer}, _, state) do
@@ -189,30 +172,24 @@ defmodule Exkad.Knode do
 
 
   def handle_call({:connect, peer} , _, state) do
-    refs = [make_ref]
-    log_refs(:connect, refs, state.me)
     state = add_peer(peer, state)
 
     {:reply, :ok, state}
   end
 
-  def handle_call({:put, key, value, refs}, _, state) do
-    log_refs(:put, refs, state.me)
+  def handle_call({:put, key, value}, _, state) do
     {state, result} = put_in_state(key, value, state)
     {:reply, result, state}
   end
 
-  def handle_call({:get, key, refs}, _, state) do
-    log_refs(:get, refs, state.me)
+  def handle_call({:get, key}, _, state) do
     result = get_in_state(key, state)
     {:reply, result, state}
   end
 
-  def handle_call({:k_closest, key, from, refs}, _, state) do
-    log_refs(:k_closest, refs, state.me)
+  def handle_call({:k_closest, key, from}, _, state) do
     state = add_peer(from, state)
     closest = get_k_closest(key, state)
-    log_refs(:k_closest_done, refs, state.me)
     {:reply, closest, state}
   end
 
@@ -221,19 +198,13 @@ defmodule Exkad.Knode do
   end
 
   def lookup_node(me, pk) do
-    refs = [make_ref]
-    log_refs(:lookup_node, refs, me)
-
-    Connection.k_closest(me, pk, refs, :nobody)
-    |> get_closer(pk, me, refs)
+    Connection.k_closest(me, pk, :nobody)
+    |> get_closer(pk, me)
   end
 
   def lookup(me, key) do
-    refs = [make_ref]
-    log_refs(:lookup, refs, me)
-
-    {oks, errors} = Connection.k_closest(me, key, refs, :nobody)
-    |> get_closer(key, me, refs)
+    {oks, errors} = Connection.k_closest(me, key, :nobody)
+    |> get_closer(key, me)
     |> Enum.map(fn
       p -> {p, Connection.get(p, key)}
     end)
@@ -253,15 +224,10 @@ defmodule Exkad.Knode do
   end
 
   def store(%Peer{} = me, key, value, replication \\ @replication) do
-    refs = [make_ref]
-    log_refs(:store, refs, me)
-
-    Connection.k_closest(me, key, refs, :nobody)
-    |> get_closer(key, me, refs)
+    Connection.k_closest(me, key, :nobody)
+    |> get_closer(key, me)
     |> Enum.take(replication)
-    |> Enum.map(fn peer ->
-        Connection.put(peer, key, value, refs)
-    end)
+    |> Enum.map(fn peer -> Connection.put(peer, key, value) end)
   end
 
 
