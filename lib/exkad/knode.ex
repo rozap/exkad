@@ -25,17 +25,20 @@ defmodule Exkad.Knode do
   end
 
   def new({_priv, pub} = keypair, opts) do
-    {:ok, pid} = start_link(keypair, opts)
-
+    {:ok, pid} = GenServer.start_link(__MODULE__, [keypair, opts], [])
     k = Keyword.get(opts, :k, @k)
     %Peer{location: pid, id: hash(pub), name: pub, k: k}
   end
 
-  def start_link(keypair, opts) do
+  def start_link do
+    keypair = Application.get_env(:exkad, :keypair)
+    opts = Application.get_env(:exkad, :opts)
     GenServer.start_link(__MODULE__, [keypair, opts], [])
   end
 
   def init([{_priv, pub} = keypair, opts]) do
+    Logger.info("Exkad.Knode is starting with name #{pub}")
+
     id = hash(pub)
     name = pub
     k = Keyword.get(opts, :k, @k)
