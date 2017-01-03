@@ -10,7 +10,9 @@ defmodule Exkad.Knode do
   defmodule State do
     defstruct [:bitlist,
       :me,
+      :local_me,
       :keypair,
+      :k,
       buckets: [],
       data: %{}
     ]
@@ -21,7 +23,7 @@ defmodule Exkad.Knode do
   end
 
   defmodule TCPPeer do
-    defstruct [:ip, :port, :id, :name, :k]
+    defstruct [:ip, :port, :id, :name]
   end
 
   def new({_priv, pub} = keypair, opts) do
@@ -41,11 +43,13 @@ defmodule Exkad.Knode do
     name = pub
     k = Keyword.get(opts, :k, @k)
 
-    with {:ok, external_me, internal_me} <- my_identity(id, name, k, Enum.into(opts, %{})),
-      :ok = Connection.start_link(external_me, internal_me) do
+    with {:ok, external_me, local_me} <- my_identity(id, name, k, Enum.into(opts, %{})),
+      :ok = Connection.start_link(external_me, local_me) do
 
       state = %State{
         me: external_me,
+        local_me: local_me,
+        k: k,
         keypair: keypair,
         buckets: Enum.map(0..bit_size(external_me.id), fn _ -> [] end)
       }
@@ -53,23 +57,22 @@ defmodule Exkad.Knode do
       :pg2.create(:exkad)
       :pg2.join(:exkad, self)
 
+      case Keyword.get(opts, :seed) do
+        nil -> :ok
+        seed -> spawn_link(fn ->
+          Logger.info("Connecting #{name} to #{seed.name}")
+          connect(local_me, seed)
+        end)
+      end
+
       {:ok, state}
     end
   end
 
   defp my_identity(id, name, k, %{tcp: tcp_opts}) do
-    case Enum.into(tcp_opts, %{}) do
-      %{port: port, ip: ip} ->
-        external_me = %TCPPeer{
-          ip: ip,
-          port: port,
-          name: name,
-          id: id,
-          k: k
-        }
-        {:ok, internal_me, _} = my_identity(id, name, k, nil)
-        {:ok, external_me, internal_me}
-      invalid -> {:error, {"Invalid TCP opts", invalid}}
+    with {:ok, external_me} <- tcp_peer_of(id, name, tcp_opts) do
+      {:ok, local_me, _} = my_identity(id, name, k, nil)
+      {:ok, external_me, local_me}
     end
   end
   defp my_identity(id, name, k, _) do
@@ -77,6 +80,28 @@ defmodule Exkad.Knode do
     {:ok, me, me}
   end
 
+  defp tcp_peer_of(id, name, tcp_opts) do
+    case Enum.into(tcp_opts, %{}) do
+      %{port: port, ip: ip} ->
+        peer = %TCPPeer{
+          ip: ip,
+          port: port,
+          name: name,
+          id: id
+        }
+        {:ok, peer}
+      invalid ->
+        {:error, {"Invalid TCP opts", invalid}}
+    end
+  end
+
+  def seed(name, %{tcp: tcp_opts}) do
+    id = hash(name)
+    tcp_peer_of(id, name, tcp_opts)
+  end
+  def seed(name, opts) when is_list(opts) do
+    seed(name, Enum.into(opts, %{}))
+  end
 
   defp prefix_length(<<same::size(1), a_rest::bitstring>>, <<same::size(1), b_rest::bitstring>>) do
     1 + prefix_length(a_rest, b_rest)
@@ -90,18 +115,18 @@ defmodule Exkad.Knode do
 
     buckets = Enum.with_index(state.buckets)
     |> Enum.map(fn
-      {b, ^position} -> Enum.take(Enum.uniq([peer | b]), state.me.k)
+      {b, ^position} -> Enum.take(Enum.uniq([peer | b]), state.k)
       {b, _}         -> b
     end)
 
     %{state | buckets: buckets}
   end
 
-  defp get_k_closest(key, %State{buckets: buckets, me: me}) do
+  defp get_k_closest(key, %State{buckets: buckets, me: me, k: k}) do
     candidates = buckets
     |> List.flatten
 
-    top_k_from([me | candidates], key, me.k)
+    top_k_from([me | candidates], key, k)
   end
 
   defp top_k_from(peers, key, k) do
@@ -199,6 +224,10 @@ defmodule Exkad.Knode do
     {:reply, state, state}
   end
 
+  def handle_call(:peer_of, _, state) do
+    {:reply, {:ok, state.local_me}, state}
+  end
+
   def lookup_node(me, pk) do
     Connection.k_closest(me, pk, :nobody)
     |> get_closer(pk, me)
@@ -258,5 +287,9 @@ defmodule Exkad.Knode do
 
   def dump(%Peer{} = me) do
     GenServer.call(me.location, :dump)
+  end
+
+  def peer_of(pid) do
+    GenServer.call(pid, :peer_of)
   end
 end

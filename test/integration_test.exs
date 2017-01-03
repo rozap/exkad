@@ -3,7 +3,7 @@ defmodule IntegrationTest do
   alias Exkad.Knode
   import TestHelper
 
-  @count 64
+  @count 8
   @k 16
 
   defp make_pool  do
@@ -23,7 +23,7 @@ defmodule IntegrationTest do
 
     Enum.map(0..8, fn _ ->
       Task.async(fn ->
-        {_, e} = Enum.map(0..64, fn i ->
+        {_, e} = Enum.map(0..8, fn i ->
           peer = Enum.random(peers)
           Knode.store(peer, "#{i}", "value_#{i}")
 

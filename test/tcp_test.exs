@@ -64,8 +64,7 @@ defmodule TcpTest do
       port: 5000,
       ip: "localhost",
       id: Hash.hash("a"),
-      name: "a",
-      k: 16
+      name: "a"
     }
   end
 
@@ -79,8 +78,7 @@ defmodule TcpTest do
       port: b_port,
       ip: "localhost",
       id: Hash.hash("b"),
-      name: "b",
-      k: 16
+      name: "b"
     })
 
     assert [:ok] == Knode.store(a, "b", "b value")

@@ -11,4 +11,4 @@ defmodule TestHelper do
   def make(pub), do: Knode.new({nil, pub}, [])
 end
 
-ExUnit.start(timeout: 5_000)
+ExUnit.start(timeout: 60_000)

@@ -1,6 +1,6 @@
 defimpl Exkad.Connection, for: Exkad.Knode.TCPPeer do
   import Exkad.Tcp.Wire
-  alias Exkad.Knode.Peer
+  alias Exkad.Knode.{Peer, TCPPeer}
   alias Exkad.Connection, as: C
 
   def start_link(external, internal) do
