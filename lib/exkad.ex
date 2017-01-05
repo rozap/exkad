@@ -18,6 +18,8 @@ defmodule Exkad do
       _ -> children
     end
 
+    Logger.info("Exkad is starting with #{length children}")
+
     child_specs = Enum.map(children, fn {{_, pub} = keypair, opts} ->
       worker(Knode, [keypair, opts], id: pub)
     end)
