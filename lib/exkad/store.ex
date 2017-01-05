@@ -6,7 +6,10 @@ defmodule Exkad.Store do
   end
 
   def init([name]) do
-    {:ok, db} = Application.get_env(:exkad, :data)
+    dir = Application.get_env(:exkad, :data)
+    File.mkdir_p!(dir)
+
+    {:ok, db} = dir
     |> Path.join(name)
     |> :binary.bin_to_list
     |> :eleveldb.open([create_if_missing: true])
