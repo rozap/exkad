@@ -1,5 +1,5 @@
 defmodule ExkadTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   alias Exkad.Knode
 
   defp random_port() do
@@ -13,16 +13,22 @@ defmodule ExkadTest do
     {:ok, s} = Knode.seed("s", tcp: [port: p, ip: "localhost"])
 
     {:ok, _} = Exkad.start(:supervisor, [
-      {{nil, "a"}, [tcp: [port: random_port(), ip: "localhost"], seed: s]},
-      {{nil, "b"}, [tcp: [port: random_port(), ip: "localhost"], seed: s]},
-      {{nil, "c"}, [tcp: [port: random_port(), ip: "localhost"], seed: s]},
-      {{nil, "d"}, [tcp: [port: random_port(), ip: "localhost"], seed: s]},
-      {{nil, "e"}, [tcp: [port: random_port(), ip: "localhost"], seed: s]}
+      {{nil, UUID.uuid4}, [tcp: [port: random_port(), ip: "localhost"], seed: s]},
+      {{nil, UUID.uuid4}, [tcp: [port: random_port(), ip: "localhost"], seed: s]},
+      {{nil, UUID.uuid4}, [tcp: [port: random_port(), ip: "localhost"], seed: s]},
+      {{nil, UUID.uuid4}, [tcp: [port: random_port(), ip: "localhost"], seed: s]},
+      {{nil, UUID.uuid4}, [tcp: [port: random_port(), ip: "localhost"], seed: s]}
     ])
 
-    :timer.sleep(50) #Let seeds settle
+    :timer.sleep(50) # Let seeds settle
 
     assert Exkad.store("a", "a value") == [:ok]
     assert Exkad.lookup("a") == {:ok, ["a value"]}
+
+    assert Exkad.store("a", "another value") == [:ok]
+    {:ok, another} = Exkad.lookup("a")
+
+    assert MapSet.new(another) == MapSet.new(["a value", "another value"])
+
   end
 end

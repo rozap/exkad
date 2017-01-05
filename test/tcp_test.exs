@@ -69,21 +69,27 @@ defmodule TcpTest do
   end
 
   test "can start two tcp knodes and put/get" do
-    a_port = random_port()
-    b_port = random_port()
-    a = Knode.new({nil, "a"}, [tcp: [port: a_port, ip: "localhost"]])
-    b = Knode.new({nil, "b"}, [tcp: [port: b_port, ip: "localhost"]])
+    q_port = random_port()
+    u_port = random_port()
+    q = Knode.new({nil, "q"}, [tcp: [port: q_port, ip: "localhost"]])
+    u = Knode.new({nil, "u"}, [tcp: [port: u_port, ip: "localhost"]])
 
-    Knode.connect(a, %Knode.TCPPeer{
-      port: b_port,
+    Knode.connect(q, %Knode.TCPPeer{
+      port: u_port,
       ip: "localhost",
-      id: Hash.hash("b"),
-      name: "b"
+      id: Hash.hash("u"),
+      name: "u"
     })
 
-    assert [:ok] == Knode.store(a, "b", "b value")
-    assert {:ok, ["b value"]} = Knode.lookup(b, "b")
-    assert {:ok, ["b value"]} = Knode.lookup(a, "b")
+    assert [:ok] == Knode.store(u, "q", "q value")
+    assert {:ok, ["q value"]} = Knode.lookup(q, "q")
+    assert {:ok, ["q value"]} = Knode.lookup(u, "q")
+    assert [:ok] == Knode.store(u, "q", "another q")
+    {:ok, actual_q} = Knode.lookup(q, "q")
+    {:ok, actual_u} = Knode.lookup(u, "q")
+
+    assert MapSet.new(actual_q) == MapSet.new(actual_u)
+    assert MapSet.new(["q value", "another q"]) ==  MapSet.new(actual_u)
   end
 
 end

@@ -11,4 +11,8 @@ defmodule TestHelper do
   def make(pub), do: Knode.new({nil, pub}, [])
 end
 
+dir = Application.get_env(:exkad, :data)
+File.rm_rf!(dir)
+File.mkdir_p!(dir)
+
 ExUnit.start(timeout: 60_000)

@@ -28,6 +28,9 @@ defmodule Exkad.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    []
+    [
+      {:eleveldb, github: "basho/eleveldb", tag: "2.2.19"},
+      {:uuid, "~> 1.1"}
+    ]
   end
 end

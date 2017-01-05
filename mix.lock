@@ -1,3 +1,10 @@
 %{"benchee": {:hex, :benchee, "0.6.0", "c2565506c621ee010e71d05f555e39a1b937e00810e284bc85463a4d4efc4b00", [:mix], [{:deep_merge, "~> 0.1", [hex: :deep_merge, optional: false]}]},
+  "cuttlefish": {:git, "git://github.com/basho/cuttlefish.git", "a463682ba86e9f49404dd72bb052e6e0c4b40839", [tag: "2.0.6"]},
   "deep_merge": {:hex, :deep_merge, "0.1.1", "c27866a7524a337b6a039eeb8dd4f17d458fd40fbbcb8c54661b71a22fffe846", [:mix], []},
-  "graphvix": {:hex, :graphvix, "0.5.0", "ee4125d1f85d7121ac19b4029bafe9a36dc63186efea2aa279b3343ebfbd3211", [:mix], []}}
+  "eleveldb": {:git, "https://github.com/basho/eleveldb.git", "3c8b26e99d883260d9ac922c0381ccaf41644025", [tag: "2.2.19"]},
+  "getopt": {:git, "git://github.com/jcomellas/getopt.git", "388dc95caa7fb97ec7db8cfc39246a36aba61bd8", [tag: "v0.8.2"]},
+  "goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "64864ba7fcf40988361340e48680b49a2c2938cf", [tag: "0.1.7"]},
+  "graphvix": {:hex, :graphvix, "0.5.0", "ee4125d1f85d7121ac19b4029bafe9a36dc63186efea2aa279b3343ebfbd3211", [:mix], []},
+  "lager": {:git, "git://github.com/basho/lager.git", "f65dde85523b6aa6a259db1c93518187ae366515", [tag: "2.2.0"]},
+  "neotoma": {:git, "git://github.com/seancribbs/neotoma.git", "6ac6007c7713712a80096de5c7cdf5b85b01374e", [tag: "1.7.3"]},
+  "uuid": {:hex, :uuid, "1.1.6", "4927232f244e69c6e255643014c2d639dad5b8313dc2a6976ee1c3724e6ca60d", [:mix], []}}

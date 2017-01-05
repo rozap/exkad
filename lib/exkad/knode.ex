@@ -2,7 +2,7 @@ defmodule Exkad.Knode do
   use GenServer
   import Exkad.Hash
   require Logger
-  alias Exkad.Connection
+  alias Exkad.{Store, Connection}
 
   @k 16
   @replication 1
@@ -13,6 +13,7 @@ defmodule Exkad.Knode do
       :local_me,
       :keypair,
       :k,
+      :store,
       buckets: [],
       data: %{}
     ]
@@ -46,12 +47,15 @@ defmodule Exkad.Knode do
     with {:ok, external_me, local_me} <- my_identity(id, name, k, Enum.into(opts, %{})),
       :ok = Connection.start_link(external_me, local_me) do
 
+      {:ok, store} = Store.start_link(name)
+
       state = %State{
         me: external_me,
         local_me: local_me,
         k: k,
         keypair: keypair,
-        buckets: Enum.map(0..bit_size(external_me.id), fn _ -> [] end)
+        buckets: Enum.map(0..bit_size(external_me.id), fn _ -> [] end),
+        store: store
       }
 
       :pg2.create(:exkad)
@@ -176,17 +180,6 @@ defmodule Exkad.Knode do
     get_closer(peers, key, me, 0)
   end
 
-  defp put_in_state(key, value, state) do
-    {struct(state, data: Map.put(state.data, key, value)), :ok}
-  end
-
-  defp get_in_state(key, state) do
-    case Map.get(state.data, key, :not_found) do
-      :not_found -> {:error, :not_found}
-      value -> {:ok, value}
-    end
-  end
-
   def handle_call({:ping, from_peer}, _, state) do
     state = add_peer(from_peer, state)
     {:reply, :ok, state}
@@ -205,12 +198,12 @@ defmodule Exkad.Knode do
   end
 
   def handle_call({:put, key, value}, _, state) do
-    {state, result} = put_in_state(key, value, state)
+    result = Store.put(state.store, key, value)
     {:reply, result, state}
   end
 
   def handle_call({:get, key}, _, state) do
-    result = get_in_state(key, state)
+    result = Store.get(state.store, key)
     {:reply, result, state}
   end
 
@@ -247,7 +240,7 @@ defmodule Exkad.Knode do
     case oks do
       [] -> {:error, {:not_found, errors}}
       _ ->
-        results = Enum.map(oks, fn {_, {:ok, v}} -> v end)
+        results = Enum.flat_map(oks, fn {_, {:ok, v}} -> v end)
         |> Enum.uniq
 
         {:ok, results}
@@ -274,7 +267,7 @@ defmodule Exkad.Knode do
   def connect(%Peer{} = me, peer) do
     :ok = GenServer.call(me.location, {:connect, peer})
 
-    {:error, {:not_found, _}} = lookup(me, me.id)
+    {:ok, []} = lookup(me, me.id)
 
     case Connection.ping(peer, me) do
       :ok ->
