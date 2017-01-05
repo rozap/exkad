@@ -15,7 +15,10 @@ defmodule Exkad.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger]]
+    [
+      applications: [:logger],
+      mod: {Exkad, Application.get_env(:exkad, :children, [])}
+    ]
   end
 
   # Dependencies can be Hex packages:
