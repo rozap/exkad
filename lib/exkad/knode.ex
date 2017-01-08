@@ -38,8 +38,6 @@ defmodule Exkad.Knode do
   end
 
   def init([{_priv, pub} = keypair, opts]) do
-    Logger.info("Exkad.Knode is starting with name #{pub}")
-
     id = hash(pub)
     name = pub
     k = Keyword.get(opts, :k, @k)
@@ -60,6 +58,8 @@ defmodule Exkad.Knode do
 
       :pg2.create(:exkad)
       :pg2.join(:exkad, self)
+
+      Logger.info("Peer with name #{name} has started with #{inspect ops}")
 
       case Keyword.get(opts, :seed) do
         nil -> :ok
