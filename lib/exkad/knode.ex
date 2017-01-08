@@ -59,7 +59,7 @@ defmodule Exkad.Knode do
       :pg2.create(:exkad)
       :pg2.join(:exkad, self)
 
-      Logger.info("Peer with name #{name} has started with #{inspect ops}")
+      Logger.info("Peer with name #{name} has started with #{inspect opts}")
 
       case Keyword.get(opts, :seed) do
         nil -> :ok
@@ -141,7 +141,7 @@ defmodule Exkad.Knode do
     |> Enum.take(k)
   end
 
-  defp get_closer(_, _, me, 5) do
+  defp get_closer(_, _, _, 5) do
     raise RuntimeError, message: "Hit max iter"
   end
   defp get_closer(_, _, %Peer{k: nil}, _) do
