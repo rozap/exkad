@@ -11,7 +11,7 @@ defmodule Exkad do
     Logger.info("Starting Exkad")
     children = case Application.get_env(:exkad, :seed) do
       {pubkey, opts} ->
-        seed = Knode.seed(pubkey, opts)
+        {:ok, seed} = Knode.seed(pubkey, opts)
         Enum.map(children, fn {keypair, child_opts} ->
           {keypair, Keyword.put(child_opts, :seed, seed)}
         end)
