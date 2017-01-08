@@ -1,5 +1,6 @@
 defmodule Exkad.Store do
   use GenServer
+  require Logger
 
   def start_link(name) do
     GenServer.start_link(__MODULE__, [name])
@@ -28,6 +29,7 @@ defmodule Exkad.Store do
   end
 
   def handle_call({:put, key, value}, _, state) do
+    Logger.debug("Putting #{key} on #{state.name}")
     {:ok, existing} = do_get(key, state)
     serialized = :erlang.term_to_binary([value | existing])
     :eleveldb.put(state.db, key, serialized, [])
@@ -35,6 +37,7 @@ defmodule Exkad.Store do
   end
 
   def handle_call({:get, key}, _, state) do
+    Logger.debug("Getting #{key} on #{state.name}")
     result = do_get(key, state)
     {:reply, result, state}
   end
